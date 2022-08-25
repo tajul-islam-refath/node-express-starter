@@ -1,15 +1,19 @@
 const express = require("express")
+const compression = require('compression')
 const cors = require("cors")
 const dotenv = require("dotenv")
 const helmet = require("helmet")
 const morgan = require("morgan")
 const bodyParser = require("body-parser")
 
-dotenv.config();
-
 const errorHandler = require("./middlewarers/error-handler.middleware")
 
+dotenv.config();
 const app = express();
+
+
+/* Gzip compressing can greatly decrease the size of the response body and hence increase the speed of a web app. */
+app.use(compression())
 app.use(helmet());
 app.use(morgan("dev"));
 app.use(cors());
