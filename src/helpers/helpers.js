@@ -27,7 +27,7 @@ exports.generateHash = (email, otp) => {
 };
 
 exports.verify = (email, otp, fullHash) => {
-  let { hash, exTime } = fullHash.split(".");
+  let [hash, exTime] = fullHash.split(".");
 
   if (Date.now() > exTime) return false;
 
@@ -37,6 +37,6 @@ exports.verify = (email, otp, fullHash) => {
     .update(hashObj)
     .digest("hex");
 
-  if (newhash != hash) return true;
-  else return false;
+  if (newhash == hash) return true;
+  return false;
 };

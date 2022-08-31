@@ -1,3 +1,5 @@
+const bcrypt = require("bcrypt");
+
 const Auth = require("./auth.module.model");
 const { sendMail } = require("../../service/email.service");
 const { generateOTP, generateHash, verify } = require("../../helpers/helpers");
@@ -39,7 +41,8 @@ exports.login = async (req, res, next) => {
       });
     }
 
-    if (password !== user.password) {
+    let match = await bcrypt.compare(password, user.password);
+    if (!match) {
       return res.status(404).json({
         success: false,
         message: "Email or password not match",
@@ -49,6 +52,7 @@ exports.login = async (req, res, next) => {
     res.status(200).json({
       success: false,
       message: "Login success",
+      token: user.getToken(),
     });
   } catch (error) {
     console.error("Login error");
@@ -67,6 +71,14 @@ exports.registration = async (req, res, next) => {
       });
     }
 
+    let oldUser = await Auth.findOne({ email: email });
+    if (oldUser) {
+      return res.status(404).json({
+        success: false,
+        message: "User already exists",
+      });
+    }
+
     let isVerified = verify(email, otp, hash);
     if (!isVerified) {
       return res.status(404).json({
@@ -75,9 +87,10 @@ exports.registration = async (req, res, next) => {
       });
     }
 
+    let hashPass = await bcrypt.hash(password, 11);
     let user = await Auth.create({
       email: email,
-      password: password,
+      password: hashPass,
     });
 
     await user.save();
@@ -85,7 +98,7 @@ exports.registration = async (req, res, next) => {
     res.status(201).json({
       success: true,
       message: "Registration successful",
-      user,
+      token: user.getToken(),
     });
   } catch (error) {
     console.error("registration failed");
@@ -93,5 +106,43 @@ exports.registration = async (req, res, next) => {
   }
 };
 
-exports.forgotPassword = (req, res, next) => {};
+exports.forgotPassword = async (req, res, next) => {
+  let { email, otp, hash, password } = req.body;
+
+  try {
+    if (!email || !password || !otp) {
+      return res.status(404).json({
+        success: false,
+        message: "Email , password and OTP is required",
+      });
+    }
+
+    let isVerified = verify(email, otp, hash);
+
+    if (!isVerified) {
+      return res.status(404).json({
+        success: false,
+        message: "password update failed try again with valid credentials",
+      });
+    }
+
+    let hashPass = await bcrypt.hash(password, 11);
+    let user = await Auth.findOneAndUpdate(
+      { email: email },
+      {
+        $set: { password: hashPass },
+      },
+      { new: true }
+    );
+
+    res.status(201).json({
+      success: true,
+      message: "Password changed successfully",
+      token: user.getToken(),
+    });
+  } catch (error) {
+    console.error("registration failed");
+    next(error);
+  }
+};
 exports.logout = (req, res, next) => {};
